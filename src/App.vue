@@ -32,4 +32,13 @@ body {
   overflow: hidden;
   font-family: 'OpenSans', sans-serif;
 }
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: url('/images/boot/ambient-glow.svg') left top / 100% 100% no-repeat;
+  pointer-events: none;
+  z-index: 0;
+}
 </style>

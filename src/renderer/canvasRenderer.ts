@@ -1,33 +1,32 @@
-import type { Channel } from '../composables/useChannelList'
-import { COLORS } from '../constants/colors'
+import { drawBootChrome } from './bootChrome'
+import { drawCategories } from './categoriesView'
+import { drawChannelList } from './channelListView'
+import { drawDecoration, generateDecorationRows } from './decoration'
+import { drawGlitchTitle } from './glitchTitle'
+import { drawInfoBar } from './infoBar'
+import { loadRendererImages } from './resources'
+import { drawStatusOverlay } from './statusOverlay'
+import { drawTarotCards, pickTarotCards } from './tarotView'
+import { drawVideoPreloader } from './videoPreloader'
+import { drawWelcomeMenu } from './welcomeView'
+import type { DecorationRow, RendererImages, RendererLayout, RendererState } from './types'
 
-export interface RendererState {
-  channels: Channel[]
-  activeIndex: number
-  showInfoBar: boolean
-  currentChannel: Channel | null
-  isPlaying: boolean
-  isLoading: boolean
-  hasError: boolean
-}
+export type { RendererState } from './types'
+
+const INTRO_MIN_MS = 1800
 
 export class CanvasRenderer {
   private canvas: HTMLCanvasElement
   private ctx: CanvasRenderingContext2D
-  private W = 0
-  private H = 0
-  private listX = 40
-  private itemHeight = 60
-  private fontSize = 22
-  private activeFrameImage: HTMLImageElement | null = null
-  private listBackgroundImage: HTMLImageElement | null = null
-  private tarotCards: HTMLImageElement[] = []
-  private performanceIcon: HTMLImageElement | null = null
-  private chaosIcon: HTMLImageElement | null = null
-  private errorIcon: HTMLImageElement | null = null
-  private imagesLoaded = false
-  private onImagesLoadedCallback: (() => void) | null = null
-  private decorationRows: Array<{ width1: number; width2: number }> = []
+  private layout: RendererLayout = { W: 0, H: 0, listX: 40, itemHeight: 60 }
+  private images: RendererImages | null = null
+  private decorationRows: DecorationRow[] = []
+  private ready = false
+  private onReadyCallback: (() => void) | null = null
+  private lastTarotChannelIndex = -1
+  private rafId = 0
+  private introStartedAt = 0
+  private onFrame: (() => void) | null = null
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -35,268 +34,146 @@ export class CanvasRenderer {
     if (!ctx) throw new Error('Cannot get canvas context')
     this.ctx = ctx
     this.resize()
-    this.generateDecoration()
-    this.loadResources()
+    void this.loadResources()
   }
 
-  private generateDecoration() {
-    this.decorationRows = []
-    const rowCount = Math.ceil(this.H / 5) // 3px высота + 2px отступ между строками
-
-    for (let i = 0; i < rowCount; i++) {
-      const width1 = Math.floor(Math.random() * 6) + 1 // 1-6px
-      const width2 = 8 - width1 - 1 // чтобы общая ширина была 8px (width1 + 1px отступ + width2)
-      this.decorationRows.push({ width1, width2 })
+  onReady(callback: () => void) {
+    if (this.ready) {
+      callback()
+      return
     }
+    this.onReadyCallback = callback
   }
 
-  onImagesLoaded(callback: () => void) {
-    this.onImagesLoadedCallback = callback
+  /** Колбэк каждый кадр (анимация intro / categories / preloader) */
+  setFrameCallback(cb: (() => void) | null) {
+    this.onFrame = cb
   }
 
   private async loadResources() {
-    // Ждём загрузки конкретных шрифтов с проверкой
-    await document.fonts.load("16px 'OpenSans'")
-    await document.fonts.load("16px 'Cyberpunk'")
+    this.images = await loadRendererImages()
+    this.images.displayTarotCards = pickTarotCards(this.images.tarotCards)
+    this.ready = true
+    this.introStartedAt = performance.now()
+    this.onReadyCallback?.()
+    this.startLoop()
+  }
 
-    // Проверяем, что шрифты действительно загружены
-    while (!document.fonts.check("16px 'OpenSans'") || !document.fonts.check("16px 'Cyberpunk'")) {
-      await new Promise((resolve) => setTimeout(resolve, 50))
+  private startLoop() {
+    const tick = () => {
+      this.rafId = requestAnimationFrame(tick)
+      this.onFrame?.()
     }
+    this.rafId = requestAnimationFrame(tick)
+  }
 
-    // Загружаем изображения
-    this.activeFrameImage = new Image()
-    this.activeFrameImage.src = '/images/active.svg'
-    await this.activeFrameImage.decode()
-
-    this.listBackgroundImage = new Image()
-    this.listBackgroundImage.src = '/images/Rectangle.svg'
-    await this.listBackgroundImage.decode()
-
-    this.performanceIcon = new Image()
-    this.performanceIcon.src = '/images/performance.svg'
-    await this.performanceIcon.decode()
-
-    this.chaosIcon = new Image()
-    this.chaosIcon.src = '/images/chaos.svg'
-    await this.chaosIcon.decode()
-
-    this.errorIcon = new Image()
-    this.errorIcon.src = '/favicon/android-chrome-192x192.png'
-    await this.errorIcon.decode()
-
-    // Загружаем карты таро
-    const cardNames = [
-      'Chariot',
-      'Death',
-      'Devil',
-      'Emperor',
-      'Empress',
-      'Fool',
-      'Hanged Man',
-      'Hermit',
-      'Hierophant',
-      'High Priestess',
-      'Justice',
-      'Lovers',
-      'Magician',
-      'Moon',
-      'Star',
-      'Strenght',
-      'Sun',
-      'Temperance',
-      'Tower',
-      'Wheel of Fortune',
-    ]
-
-    for (const name of cardNames) {
-      const img = new Image()
-      img.src = `/images/cards/${name}.png`
-      await img.decode()
-      this.tarotCards.push(img)
-    }
-
-    this.imagesLoaded = true
-    this.onImagesLoadedCallback?.()
+  destroy() {
+    cancelAnimationFrame(this.rafId)
+    this.onFrame = null
   }
 
   resize() {
-    this.W = window.innerWidth
-    this.H = window.innerHeight
-    this.canvas.width = this.W
-    this.canvas.height = this.H
+    const dpr = Math.max(1, window.devicePixelRatio || 1)
+    this.layout.W = window.innerWidth
+    this.layout.H = window.innerHeight
+    // Буфер в физических пикселях — иначе на HiDPI всё (и SVG) мылится
+    this.canvas.width = Math.round(this.layout.W * dpr)
+    this.canvas.height = Math.round(this.layout.H * dpr)
+    this.canvas.style.width = `${this.layout.W}px`
+    this.canvas.style.height = `${this.layout.H}px`
+    // После смены width/height контекст сбрасывается — возвращаем CSS-координаты
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    this.ctx.imageSmoothingEnabled = true
+    this.ctx.imageSmoothingQuality = 'high'
+    this.layout.listX = 40
+    this.layout.itemHeight = Math.min(60, this.layout.H / 15)
+    this.decorationRows = generateDecorationRows(this.layout.H)
+  }
 
-    this.listX = 40
-    this.itemHeight = Math.min(60, this.H / 15)
-    this.fontSize = Math.min(22, this.itemHeight * 0.45)
-    this.generateDecoration()
+  getIntroElapsedMs(): number {
+    if (!this.introStartedAt) return 0
+    return performance.now() - this.introStartedAt
+  }
+
+  isIntroMinDone(): boolean {
+    return this.getIntroElapsedMs() >= INTRO_MIN_MS
   }
 
   render(state: RendererState) {
-    if (!this.imagesLoaded) return
+    if (!this.ready || !this.images) return
 
-    this.ctx.clearRect(0, 0, this.W, this.H)
-
-    this.renderDecoration()
-
-    if (!state.isPlaying) {
-      this.renderTarotCards()
+    if (state.phase === 'player' && state.activeIndex !== this.lastTarotChannelIndex) {
+      this.lastTarotChannelIndex = state.activeIndex
+      this.images.displayTarotCards = pickTarotCards(this.images.tarotCards)
     }
 
-    this.renderChannelList(state)
+    const { ctx, layout, images } = this
+    ctx.clearRect(0, 0, layout.W, layout.H)
+
+    if (state.phase === 'intro' || state.phase === 'welcome' || state.phase === 'categories') {
+      drawDecoration(ctx, this.decorationRows, 1)
+      const chromeOpacity = state.phase === 'intro' ? 1 : 0.55
+      drawBootChrome(ctx, layout, images, state.bootProgress, chromeOpacity)
+    }
+
+    if (state.phase === 'intro') {
+      drawGlitchTitle(ctx, layout, state.introElapsedMs)
+      return
+    }
+
+    if (state.phase === 'welcome') {
+      drawWelcomeMenu(ctx, layout, images, state.hasError, state.introElapsedMs)
+      return
+    }
+
+    if (state.phase === 'categories') {
+      const appear = Math.min(1, Math.max(0, (state.introElapsedMs - INTRO_MIN_MS) / 600))
+      drawCategories(
+        ctx,
+        layout,
+        images,
+        state.categories,
+        state.categoryFocusIndex,
+        appear || 1,
+      )
+      return
+    }
+
+    // плеер
+    const showPreloader = state.isBuffering && !state.hasError
+    const showTarot = !state.isPlaying || showPreloader || state.hasError
+
+    if (!state.uiVisible) {
+      if (showTarot) {
+        drawTarotCards(ctx, layout, images)
+      }
+      if (showPreloader) {
+        drawVideoPreloader(ctx, layout, images)
+      }
+      if (state.hasError) {
+        drawStatusOverlay(ctx, layout, images, 'error', 'Ошибка воспроизведения')
+      }
+      return
+    }
+
+    drawDecoration(ctx, this.decorationRows, 1)
+
+    if (showTarot) {
+      drawTarotCards(ctx, layout, images)
+    }
+
+    drawChannelList(ctx, layout, images, state.channels, state.activeIndex)
 
     if (state.showInfoBar && state.currentChannel) {
-      this.renderInfoBar(state.currentChannel)
-    }
-  }
-
-  private renderDecoration() {
-    const startX = 20
-    const startY = 0
-    const rectHeight = 3
-    const rowGap = 2
-    const rectGap = 1
-
-    this.ctx.fillStyle = COLORS.primary
-
-    this.decorationRows.forEach((row, i) => {
-      const y = startY + i * (rectHeight + rowGap)
-
-      // Первый прямоугольник
-      this.ctx.fillRect(startX, y, row.width1, rectHeight)
-
-      // Второй прямоугольник
-      const secondX = startX + row.width1 + rectGap
-      this.ctx.fillRect(secondX, y, row.width2, rectHeight)
-    })
-  }
-
-  private renderTarotCards() {
-    const cardWidth = 200
-    const cardHeight = 300
-    const gap = 30
-    const startX = this.W - cardWidth - 60
-    const startY = 60
-
-    // Отображаем 3 случайные карты
-    const shuffled = [...this.tarotCards].sort(() => Math.random() - 0.5)
-    const cardsToShow = shuffled.slice(0, 3)
-
-    cardsToShow.forEach((card, i) => {
-      const x = startX
-      const y = startY + i * (cardHeight + gap)
-
-      // Тень
-      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'
-      this.ctx.fillRect(x + 8, y + 8, cardWidth, cardHeight)
-
-      // Карта
-      this.ctx.drawImage(card, x, y, cardWidth, cardHeight)
-    })
-  }
-
-  private renderChannelList(state: RendererState) {
-    const listWidth = 350
-    const listTop = 60
-    const listBottom = this.H
-    const visibleHeight = listBottom - listTop
-    const itemTotalHeight = this.itemHeight + 8
-    const visibleItems = Math.floor(visibleHeight / itemTotalHeight)
-
-    // Фон списка - Rectangle.svg на всю высоту
-    this.ctx.drawImage(this.listBackgroundImage!, 150, 0, listWidth, this.H)
-
-    // Вычисляем диапазон видимых элементов
-    const startIndex = Math.max(0, state.activeIndex - Math.floor(visibleItems / 2))
-    const endIndex = Math.min(state.channels.length, startIndex + visibleItems + 1)
-
-    state.channels.forEach((channel, i) => {
-      if (i < startIndex || i >= endIndex) return
-
-      const visibleIndex = i - startIndex
-      const y = listTop + visibleIndex * itemTotalHeight
-      const isActive = i === state.activeIndex
-
-      this.renderChannelItem(channel, i, y, listWidth, isActive)
-    })
-  }
-
-  private renderChannelItem(
-    channel: Channel,
-    index: number,
-    y: number,
-    listWidth: number,
-    isActive: boolean,
-  ) {
-    const fontSize = 28
-    const centerY = y + this.itemHeight / 2 + fontSize / 3
-    const numberWidth = 50
-    const frameX = this.listX + numberWidth
-    const frameWidth = Math.floor((listWidth - 80 - numberWidth) * 1.5)
-
-    if (isActive) {
-      // Рисуем SVG рамку для активного элемента (сдвигаем правее номера)
-      this.ctx.drawImage(this.activeFrameImage!, frameX, y, frameWidth, this.itemHeight)
-      this.ctx.fillStyle = COLORS.activeText
-      this.ctx.font = `600 ${fontSize}px 'OpenSans'`
-    } else {
-      // Неактивные - без фона и рамки
-      this.ctx.fillStyle = COLORS.primary
-      this.ctx.font = `600 ${fontSize}px 'OpenSans'`
+      drawInfoBar(ctx, layout, state.currentChannel)
     }
 
-    // Номер (левее SVG рамки)
-    this.ctx.fillStyle = isActive ? COLORS.activeText : COLORS.textMuted
-    this.ctx.font = `600 ${fontSize * 0.7}px 'OpenSans'`
-    this.ctx.fillText(String(index + 1).padStart(2, '0'), this.listX + 15, centerY)
-
-    // Название (внутри SVG рамки)
-    this.ctx.fillStyle = isActive ? COLORS.activeText : COLORS.primary
-    this.ctx.font = isActive ? `600 ${fontSize}px 'OpenSans'` : `600 ${fontSize}px 'OpenSans'`
-
-    // Обрезаем длинные названия
-    const maxWidth = frameWidth - 10
-    const text = this.truncateText(channel.name, maxWidth)
-    this.ctx.fillText(text, frameX + 10, centerY)
-  }
-
-  private truncateText(text: string, maxWidth: number): string {
-    const metrics = this.ctx.measureText(text)
-    if (metrics.width <= maxWidth) return text
-
-    let truncated = text
-    while (this.ctx.measureText(truncated + '...').width > maxWidth && truncated.length > 0) {
-      truncated = truncated.slice(0, -1)
+    if (showPreloader) {
+      drawVideoPreloader(ctx, layout, images)
     }
-    return truncated + '...'
-  }
 
-  private renderInfoBar(channel: Channel) {
-    const barHeight = 110
-    const barWidth = 1200
-    const y = this.H - barHeight
-
-    // Градиентный фон
-    const grad = this.ctx.createLinearGradient(0, y, 0, this.H)
-    grad.addColorStop(0, 'rgba(0,0,0,0)')
-    grad.addColorStop(0.1, 'rgba(0,0,0,0.85)')
-    grad.addColorStop(1, 'rgba(0,0,0,0.95)')
-    this.ctx.fillStyle = grad
-    this.ctx.fillRect(500, y, barWidth, barHeight)
-
-    // Название канала
-    this.ctx.fillStyle = COLORS.textPrimary
-    this.ctx.font = `bold ${Math.min(32, this.H / 20)}px 'Cyberpunk'`
-    this.ctx.fillText(channel.name, 600, y + 45)
-
-    // Программа
-    this.ctx.fillStyle = COLORS.textSecondary
-    this.ctx.font = `${Math.min(20, this.H / 30)}px 'OpenSans'`
-    this.ctx.fillText(channel.program || 'Идёт прямой эфир', 600, y + 82)
-
-    // Подсказка
-    this.ctx.fillStyle = COLORS.textMuted
-    this.ctx.font = '14px OpenSans'
-    this.ctx.fillText('ⓘ  нажмите ENTER ещё раз, чтобы скрыть', barWidth - 260, y + 40)
+    if (state.hasError) {
+      drawStatusOverlay(ctx, layout, images, 'error', 'Ошибка воспроизведения')
+    }
   }
 }

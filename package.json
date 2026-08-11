@@ -13,22 +13,22 @@
     "lint": "oxlint"
   },
   "dependencies": {
-    "vue": "beta",
-    "vue-router": "^5.1.0"
+    "hls.js": "^1.6.17",
+    "vue": "beta"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^24.13.2",
-    "@vitejs/plugin-vue": "^6.0.7",
+    "@vitejs/plugin-vue": "^6.0.8",
     "@vue/tsconfig": "^0.9.1",
-    "npm-run-all2": "^9.0.2",
-    "oxfmt": "^0.54.0",
-    "oxlint": "^1.74.0",
+    "npm-run-all2": "^9.0.3",
+    "oxfmt": "^0.62.0",
+    "oxlint": "^1.77.0",
     "typescript": "~6.0.0",
-    "vite": "^8.0.16",
+    "vite": "^8.2.1",
     "vite-plugin-pwa": "^1.3.0",
-    "vite-plugin-vue-devtools": "^8.1.2",
-    "vue-tsc": "^3.3.5"
+    "vite-plugin-vue-devtools": "^8.2.1",
+    "vue-tsc": "^3.3.9"
   },
   "engines": {
     "node": "^22.18.0 || >=24.12.0"
