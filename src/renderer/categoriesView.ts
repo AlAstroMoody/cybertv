@@ -1,11 +1,7 @@
-import { ALL_CATEGORIES } from '../composables/useChannelList'
+import { districtLabel } from '../constants/districts'
 import { COLORS } from '../constants/colors'
 import { truncateText } from './text'
 import type { RendererImages, RendererLayout } from './types'
-
-function labelFor(id: string): string {
-  return id === ALL_CATEGORIES ? 'Все каналы' : id
-}
 
 /**
  * Сетка из 2 колонок. ↑↓ — по строкам, ←→ — между колонками.
@@ -18,6 +14,7 @@ export function drawCategories(
   categoryIds: string[],
   focusIndex: number,
   appearProgress: number,
+  realAccess = true,
 ): void {
   if (categoryIds.length === 0) return
 
@@ -70,7 +67,7 @@ export function drawCategories(
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
 
-    const text = truncateText(ctx, labelFor(id), frameW - 36)
+    const text = truncateText(ctx, districtLabel(id, realAccess), frameW - 36)
 
     if (isFocused && frame) {
       const frameX = cellX

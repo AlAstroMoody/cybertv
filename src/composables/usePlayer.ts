@@ -103,6 +103,9 @@ export function usePlayer() {
         hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
+          fetchSetup(context, init) {
+            return new Request(context.url, { ...init, referrerPolicy: 'no-referrer' })
+          },
         })
         hls.loadSource(url)
         hls.attachMedia(el)
@@ -134,6 +137,13 @@ export function usePlayer() {
     el.load()
   }
 
+  function fail() {
+    destroyHls()
+    isPlaying.value = false
+    isBuffering.value = false
+    hasError.value = true
+  }
+
   function toggleMute() {
     if (video.value) {
       video.value.muted = !video.value.muted
@@ -160,6 +170,7 @@ export function usePlayer() {
     pause,
     stop,
     setUrl,
+    fail,
     toggleMute,
     setVolume,
   }

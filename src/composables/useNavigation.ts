@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-export type AppPhase = 'intro' | 'welcome' | 'categories' | 'player'
+export type AppPhase = 'intro' | 'unlock' | 'traced' | 'welcome' | 'categories' | 'player'
 
 export function useNavigation() {
   const phase = ref<AppPhase>('intro')

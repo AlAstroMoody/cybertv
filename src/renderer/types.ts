@@ -16,7 +16,7 @@ export interface RendererImages {
   categoryFrame: HTMLImageElement | null
   preloaderIcons: HTMLImageElement[]
   tarotCards: HTMLImageElement[]
-  displayTarotCards: HTMLImageElement[]
+  tarotByName: Partial<Record<string, HTMLImageElement>>
 }
 
 export interface RendererLayout {
@@ -41,6 +41,11 @@ export interface RendererState {
   introElapsedMs: number
   uiVisible: boolean
   isBuffering: boolean
+  unlockDigits: string
+  tracedElapsedMs: number
+  realAccess: boolean
+  nodeInput: string
+  deadUrls: ReadonlySet<string>
 }
 
 export type DecorationRow = { width1: number; width2: number }

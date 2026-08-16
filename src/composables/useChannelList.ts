@@ -38,6 +38,7 @@ export function useChannelList() {
   const selectedCategory = ref<string>(ALL_CATEGORIES)
   const isLoading = ref(false)
   const hasError = ref(false)
+  const deadUrls = ref<Set<string>>(new Set())
 
   const categoryOptions = computed(() => [ALL_CATEGORIES, ...categories.value])
 
@@ -54,10 +55,16 @@ export function useChannelList() {
     const lines = content.split('\n')
     const parsedChannels: Channel[] = []
     let currentChannel: Channel | null = null
+    let skipForBrowser = false
 
     for (const line of lines) {
       const trimmed = line.trim()
       if (!trimmed) continue
+
+      if (isBrowserBlockedVlcOpt(trimmed)) {
+        skipForBrowser = true
+        continue
+      }
 
       if (trimmed.startsWith('#EXTINF:')) {
         const { name, group } = parseExtInf(trimmed.substring(8))
@@ -70,14 +77,26 @@ export function useChannelList() {
       } else if (!trimmed.startsWith('#') && currentChannel) {
         currentChannel.url = trimmed
 
-        if (isValidStreamUrl(trimmed)) {
+        if (!skipForBrowser && isValidStreamUrl(trimmed)) {
           parsedChannels.push(currentChannel)
         }
         currentChannel = null
+        skipForBrowser = false
       }
     }
 
     return parsedChannels
+  }
+
+  function isBrowserBlockedVlcOpt(line: string): boolean {
+    if (!line.startsWith('#EXTVLCOPT:')) return false
+    const opt = line.slice('#EXTVLCOPT:'.length).toLowerCase()
+    return (
+      opt.startsWith('http-user-agent') ||
+      opt.startsWith('http-referrer') ||
+      opt.startsWith('http-cookie') ||
+      opt.includes('http-header')
+    )
   }
 
   function isValidStreamUrl(url: string): boolean {
@@ -100,34 +119,72 @@ export function useChannelList() {
     hasError.value = false
 
     try {
-      const response = await fetch(url)
+      const response = await fetch(url, { referrerPolicy: 'no-referrer' })
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`)
       }
 
       const text = await response.text()
-      channels.value = parseM3U(text)
-
-      if (channels.value.length === 0) {
-        hasError.value = true
-        return []
-      }
-
-      const groups = new Set<string>()
-      channels.value.forEach((ch) => {
-        if (ch.group) groups.add(ch.group)
-      })
-      categories.value = Array.from(groups).sort((a, b) => a.localeCompare(b, 'ru'))
-
-      return channels.value
+      return commitChannels(parseM3U(text))
     } catch (error) {
       console.error('Ошибка загрузки плейлиста:', error)
-      channels.value = []
+      commitChannels([])
       hasError.value = true
       return []
     } finally {
       isLoading.value = false
     }
+  }
+
+  function applyM3U(content: string) {
+    isLoading.value = false
+    return commitChannels(parseM3U(content))
+  }
+
+  function markDead(url: string) {
+    if (!url || deadUrls.value.has(url)) return
+    const next = new Set(deadUrls.value)
+    next.add(url)
+    deadUrls.value = next
+  }
+
+  function markLive(url: string) {
+    if (!url || !deadUrls.value.has(url)) return
+    const next = new Set(deadUrls.value)
+    next.delete(url)
+    deadUrls.value = next
+  }
+
+  /** Следующий не помеченный мёртвым; текущий пропускаем. */
+  function nextLiveChannel(direction: 1 | -1): Channel | null {
+    const list = filteredChannels.value
+    const n = list.length
+    if (!n) return null
+    const dead = deadUrls.value
+    for (let step = 1; step <= n; step++) {
+      const i = (((activeIndex.value + direction * step) % n) + n) % n
+      const ch = list[i]
+      if (ch && !dead.has(ch.url)) {
+        setActiveIndex(i)
+        return ch
+      }
+    }
+    return null
+  }
+
+  function commitChannels(parsed: Channel[]) {
+    channels.value = parsed
+    activeIndex.value = 0
+    selectedCategory.value = ALL_CATEGORIES
+    deadUrls.value = new Set()
+
+    const groups = new Set<string>()
+    parsed.forEach((ch) => {
+      if (ch.group) groups.add(ch.group)
+    })
+    categories.value = Array.from(groups).sort((a, b) => a.localeCompare(b, 'ru'))
+    hasError.value = parsed.length === 0
+    return parsed
   }
 
   function selectCategory(categoryId: string) {
@@ -163,7 +220,12 @@ export function useChannelList() {
     selectedCategory,
     isLoading,
     hasError,
+    deadUrls,
+    markDead,
+    markLive,
+    nextLiveChannel,
     loadM3U,
+    applyM3U,
     selectCategory,
     setActiveIndex,
     nextChannel,

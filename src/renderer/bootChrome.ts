@@ -10,6 +10,7 @@ export function drawBootChrome(
   images: RendererImages,
   bootProgress: number,
   opacity = 1,
+  elapsedMs = 0,
 ): void {
   if (opacity <= 0) return
 
@@ -74,5 +75,27 @@ export function drawBootChrome(
   ctx.fillText(DISCLAIMER, W / 2, lineYBottom + lineH)
   ctx.textAlign = 'left'
 
+  drawPulseDot(ctx, topX + 140, topY + 21, elapsedMs, opacity)
+
+  ctx.restore()
+}
+
+/** Пульсирующая точка узла */
+export function drawPulseDot(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  elapsedMs: number,
+  opacity = 1,
+): void {
+  const pulse = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(elapsedMs / 280))
+  ctx.save()
+  ctx.globalAlpha = opacity * pulse
+  ctx.fillStyle = COLORS.activeText
+  ctx.shadowColor = COLORS.activeText
+  ctx.shadowBlur = 10
+  ctx.beginPath()
+  ctx.arc(x, y, 3.5, 0, Math.PI * 2)
+  ctx.fill()
   ctx.restore()
 }

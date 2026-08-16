@@ -1,17 +1,23 @@
 import { COLORS } from '../constants/colors'
 import type { RendererImages, RendererLayout } from './types'
 
-/** Тексты экрана-приветствия (вайб CP2077) */
+/** Тексты экрана-приветствия */
 export const WELCOME_OK = {
-  title: 'ЧУМБА,',
-  line1: 'мы в эфире -',
-  line2: 'жми на кнопку',
+  title: 'GRANTED',
+  line1: 'секретные архивы',
+  line2: 'доступ получен',
+} as const
+
+export const WELCOME_GUEST = {
+  title: 'GUEST',
+  line1: 'открытый контур',
+  line2: 'гость допущен',
 } as const
 
 export const WELCOME_ERROR = {
-  title: 'ЧУМБА,',
-  line1: 'линк оборван -',
-  line2: 'не сегодня',
+  title: 'DENIED',
+  line1: 'архивы запечатаны',
+  line2: 'узел молчит',
 } as const
 
 /** Всплеск примерно раз в 1.5–2.5 с, короткая вспышка */
@@ -104,8 +110,9 @@ export function drawWelcomeMenu(
   images: RendererImages,
   hasError: boolean,
   elapsedMs = 0,
+  realAccess = true,
 ): void {
-  const copy = hasError ? WELCOME_ERROR : WELCOME_OK
+  const copy = hasError ? WELCOME_ERROR : realAccess ? WELCOME_OK : WELCOME_GUEST
   const { W, H } = layout
   const g = welcomeGlitch(elapsedMs)
 

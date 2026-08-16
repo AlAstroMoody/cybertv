@@ -1,4 +1,5 @@
 import { loadFonts, loadImages } from '../utils/assets'
+import { TAROT_CARD_NAMES } from './tarotView'
 import type { RendererImages } from './types'
 
 const UI_IMAGES = {
@@ -22,29 +23,6 @@ const PRELOADER_ICONS = [
   '/images/preloader/Reflex-auto.svg',
   '/images/preloader/Intelligence.auto.svg',
   '/images/preloader/Techhability.auto.svg',
-] as const
-
-const TAROT_CARD_NAMES = [
-  'Chariot',
-  'Death',
-  'Devil',
-  'Emperor',
-  'Empress',
-  'Fool',
-  'Hanged Man',
-  'Hermit',
-  'Hierophant',
-  'High Priestess',
-  'Justice',
-  'Lovers',
-  'Magician',
-  'Moon',
-  'Star',
-  'Strenght',
-  'Sun',
-  'Temperance',
-  'Tower',
-  'Wheel of Fortune',
 ] as const
 
 export async function loadRendererImages(): Promise<RendererImages> {
@@ -83,6 +61,11 @@ export async function loadRendererImages(): Promise<RendererImages> {
 
   const preloaderIcons = rest.slice(0, PRELOADER_ICONS.length)
   const tarotCards = rest.slice(PRELOADER_ICONS.length)
+  const tarotByName: RendererImages['tarotByName'] = {}
+  TAROT_CARD_NAMES.forEach((name, i) => {
+    const img = tarotCards[i]
+    if (img) tarotByName[name] = img
+  })
 
   return {
     activeFrame: activeFrame ?? null,
@@ -99,6 +82,6 @@ export async function loadRendererImages(): Promise<RendererImages> {
     categoryFrame: categoryFrame ?? null,
     preloaderIcons,
     tarotCards,
-    displayTarotCards: [],
+    tarotByName,
   }
 }

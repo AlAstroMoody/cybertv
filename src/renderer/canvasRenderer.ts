@@ -1,12 +1,15 @@
-import { drawBootChrome } from './bootChrome'
+import { drawBootChrome, drawPulseDot } from './bootChrome'
 import { drawCategories } from './categoriesView'
-import { drawChannelList } from './channelListView'
+import { drawChannelList, drawChannelScrim } from './channelListView'
 import { drawDecoration, generateDecorationRows } from './decoration'
 import { drawGlitchTitle } from './glitchTitle'
-import { drawInfoBar } from './infoBar'
+import { drawInfoBar, drawNodeTune } from './infoBar'
 import { loadRendererImages } from './resources'
+import { drawSignalNoise } from './signalNoise'
 import { drawStatusOverlay } from './statusOverlay'
-import { drawTarotCards, pickTarotCards } from './tarotView'
+import { drawTarotCards, tarotForPlayer, tarotForTrace, tarotForWelcome } from './tarotView'
+import { drawTraced } from './tracedView'
+import { drawUnlock } from './unlockView'
 import { drawVideoPreloader } from './videoPreloader'
 import { drawWelcomeMenu } from './welcomeView'
 import type { DecorationRow, RendererImages, RendererLayout, RendererState } from './types'
@@ -23,7 +26,6 @@ export class CanvasRenderer {
   private decorationRows: DecorationRow[] = []
   private ready = false
   private onReadyCallback: (() => void) | null = null
-  private lastTarotChannelIndex = -1
   private rafId = 0
   private introStartedAt = 0
   private onFrame: (() => void) | null = null
@@ -52,7 +54,6 @@ export class CanvasRenderer {
 
   private async loadResources() {
     this.images = await loadRendererImages()
-    this.images.displayTarotCards = pickTarotCards(this.images.tarotCards)
     this.ready = true
     this.introStartedAt = performance.now()
     this.onReadyCallback?.()
@@ -90,6 +91,10 @@ export class CanvasRenderer {
     this.decorationRows = generateDecorationRows(this.layout.H)
   }
 
+  resetBoot() {
+    this.introStartedAt = performance.now()
+  }
+
   getIntroElapsedMs(): number {
     if (!this.introStartedAt) return 0
     return performance.now() - this.introStartedAt
@@ -102,18 +107,18 @@ export class CanvasRenderer {
   render(state: RendererState) {
     if (!this.ready || !this.images) return
 
-    if (state.phase === 'player' && state.activeIndex !== this.lastTarotChannelIndex) {
-      this.lastTarotChannelIndex = state.activeIndex
-      this.images.displayTarotCards = pickTarotCards(this.images.tarotCards)
-    }
-
     const { ctx, layout, images } = this
     ctx.clearRect(0, 0, layout.W, layout.H)
 
-    if (state.phase === 'intro' || state.phase === 'welcome' || state.phase === 'categories') {
+    if (
+      state.phase === 'intro' ||
+      state.phase === 'unlock' ||
+      state.phase === 'welcome' ||
+      state.phase === 'categories'
+    ) {
       drawDecoration(ctx, this.decorationRows, 1)
       const chromeOpacity = state.phase === 'intro' ? 1 : 0.55
-      drawBootChrome(ctx, layout, images, state.bootProgress, chromeOpacity)
+      drawBootChrome(ctx, layout, images, state.bootProgress, chromeOpacity, state.introElapsedMs)
     }
 
     if (state.phase === 'intro') {
@@ -121,8 +126,21 @@ export class CanvasRenderer {
       return
     }
 
+    if (state.phase === 'unlock') {
+      drawUnlock(ctx, layout, state.unlockDigits, state.introElapsedMs)
+      return
+    }
+
+    if (state.phase === 'traced') {
+      drawDecoration(ctx, this.decorationRows, 1)
+      drawTarotCards(ctx, layout, tarotForTrace(images), 'flank')
+      drawTraced(ctx, layout, state.unlockDigits, state.tracedElapsedMs)
+      return
+    }
+
     if (state.phase === 'welcome') {
-      drawWelcomeMenu(ctx, layout, images, state.hasError, state.introElapsedMs)
+      drawWelcomeMenu(ctx, layout, images, state.hasError, state.introElapsedMs, state.realAccess)
+      drawTarotCards(ctx, layout, tarotForWelcome(images, state.realAccess), 'fan')
       return
     }
 
@@ -135,17 +153,24 @@ export class CanvasRenderer {
         state.categories,
         state.categoryFocusIndex,
         appear || 1,
+        state.realAccess,
       )
       return
     }
 
     // плеер
     const showPreloader = state.isBuffering && !state.hasError
-    const showTarot = !state.isPlaying || showPreloader || state.hasError
+    const showNoise = showPreloader && !state.isPlaying
+    const showTarot = !showNoise && (!state.isPlaying || showPreloader || state.hasError)
+    const playerTarot = tarotForPlayer(images, state.realAccess)
+
+    if (showNoise) {
+      drawSignalNoise(ctx, layout, state.introElapsedMs)
+    }
 
     if (!state.uiVisible) {
       if (showTarot) {
-        drawTarotCards(ctx, layout, images)
+        drawTarotCards(ctx, layout, playerTarot, 'column')
       }
       if (showPreloader) {
         drawVideoPreloader(ctx, layout, images)
@@ -156,16 +181,30 @@ export class CanvasRenderer {
       return
     }
 
-    drawDecoration(ctx, this.decorationRows, 1)
-
-    if (showTarot) {
-      drawTarotCards(ctx, layout, images)
+    if (state.isPlaying || showNoise) {
+      drawChannelScrim(ctx, layout)
     }
 
-    drawChannelList(ctx, layout, images, state.channels, state.activeIndex)
+    drawDecoration(ctx, this.decorationRows, 1)
+    drawPulseDot(ctx, 64, 28, state.introElapsedMs)
 
-    if (state.showInfoBar && state.currentChannel) {
-      drawInfoBar(ctx, layout, state.currentChannel)
+    if (showTarot) {
+      drawTarotCards(ctx, layout, playerTarot, 'column')
+    }
+
+    drawChannelList(ctx, layout, images, state.channels, state.activeIndex, state.deadUrls)
+
+    if (state.nodeInput) {
+      drawNodeTune(ctx, layout, state.nodeInput, state.realAccess)
+    } else if (state.showInfoBar && state.currentChannel) {
+      drawInfoBar(
+        ctx,
+        layout,
+        state.currentChannel,
+        state.realAccess,
+        state.isBuffering,
+        state.hasError,
+      )
     }
 
     if (showPreloader) {
