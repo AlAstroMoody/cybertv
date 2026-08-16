@@ -1,11 +1,12 @@
 import { onScopeDispose } from 'vue'
+import { assetUrl } from '../utils/assetUrl'
 
 export const SOUND_SRCS = {
-  ambient: '/sound/fade.mp3',
-  ambientDecoy: '/sound/fade2.mp3',
-  alarm: '/sound/police-alarm.mp3',
-  connect: '/sound/connect.mp3',
-  alert: '/sound/alert.mp3',
+  ambient: assetUrl('sound/fade.mp3'),
+  ambientDecoy: assetUrl('sound/fade2.mp3'),
+  alarm: assetUrl('sound/police-alarm.mp3'),
+  connect: assetUrl('sound/connect.mp3'),
+  alert: assetUrl('sound/alert.mp3'),
 } as const
 
 export type AmbientTheme = 'real' | 'decoy'

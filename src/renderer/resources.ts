@@ -1,3 +1,4 @@
+import { assetUrl } from '../utils/assetUrl'
 import { loadFonts, loadImages } from '../utils/assets'
 import { TAROT_CARD_NAMES } from './tarotView'
 import type { RendererImages } from './types'
@@ -42,22 +43,24 @@ export async function loadRendererImages(): Promise<RendererImages> {
     signalBars,
     categoryFrame,
     ...rest
-  ] = await loadImages([
-    UI_IMAGES.activeFrame,
-    UI_IMAGES.listBackground,
-    UI_IMAGES.performance,
-    UI_IMAGES.chaos,
-    UI_IMAGES.error,
-    UI_IMAGES.frameLine,
-    UI_IMAGES.xpTrack,
-    UI_IMAGES.xpFill,
-    UI_IMAGES.diamond,
-    UI_IMAGES.structure,
-    UI_IMAGES.signalBars,
-    UI_IMAGES.categoryFrame,
-    ...PRELOADER_ICONS,
-    ...TAROT_CARD_NAMES.map((name) => `/images/cards/${name}.png`),
-  ])
+  ] = await loadImages(
+    [
+      UI_IMAGES.activeFrame,
+      UI_IMAGES.listBackground,
+      UI_IMAGES.performance,
+      UI_IMAGES.chaos,
+      UI_IMAGES.error,
+      UI_IMAGES.frameLine,
+      UI_IMAGES.xpTrack,
+      UI_IMAGES.xpFill,
+      UI_IMAGES.diamond,
+      UI_IMAGES.structure,
+      UI_IMAGES.signalBars,
+      UI_IMAGES.categoryFrame,
+      ...PRELOADER_ICONS,
+      ...TAROT_CARD_NAMES.map((name) => `/images/cards/${name}.png`),
+    ].map(assetUrl),
+  )
 
   const preloaderIcons = rest.slice(0, PRELOADER_ICONS.length)
   const tarotCards = rest.slice(PRELOADER_ICONS.length)

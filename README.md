@@ -18,6 +18,20 @@ npm run build
 npm run preview
 ```
 
+Превью и dev — с префиксом `/cybertv/` (как на GitHub Pages).
+
+## Деплой
+
+Одна команда: сборка и публикация ветки `gh-pages`, без `dist` в `main`.
+
+```bash
+npm run deploy
+```
+
+Сайт: https://alastromoody.github.io/cybertv/
+
+Первый раз в репозитории: **Settings → Pages → Deploy from a branch → `gh-pages` / `/ (root)`**.
+
 ## Управление
 
 Пульт / клавиатура:

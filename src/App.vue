@@ -9,14 +9,14 @@ import TvPlayer from './components/TvPlayer.vue'
 <style>
 @font-face {
   font-family: 'Cyberpunk';
-  src: url('/fonts/Cyberpunk.woff2') format('woff2');
+  src: url('/cybertv/fonts/Cyberpunk.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
 }
 
 @font-face {
   font-family: 'OpenSans';
-  src: url('/fonts/OpenSans-Regular.woff2') format('woff2');
+  src: url('/cybertv/fonts/OpenSans-Regular.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
 }
@@ -28,7 +28,7 @@ import TvPlayer from './components/TvPlayer.vue'
 }
 
 body {
-  background: #0e0e17 url('/images/bg.webp') center/cover no-repeat fixed;
+  background: #0e0e17 url('/cybertv/images/bg.webp') center/cover no-repeat fixed;
   overflow: hidden;
   font-family: 'OpenSans', sans-serif;
 }
@@ -37,7 +37,7 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: url('/images/boot/ambient-glow.svg') left top / 100% 100% no-repeat;
+  background: url('/cybertv/images/boot/ambient-glow.svg') left top / 100% 100% no-repeat;
   pointer-events: none;
   z-index: 0;
 }
