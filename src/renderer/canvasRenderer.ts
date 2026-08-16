@@ -127,7 +127,7 @@ export class CanvasRenderer {
     }
 
     if (state.phase === 'unlock') {
-      drawUnlock(ctx, layout, state.unlockDigits, state.introElapsedMs)
+      drawUnlock(ctx, layout, state.unlockDigits, state.introElapsedMs, state.handheld)
       return
     }
 

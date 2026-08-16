@@ -42,6 +42,7 @@ export interface RendererState {
   uiVisible: boolean
   isBuffering: boolean
   unlockDigits: string
+  handheld: boolean
   tracedElapsedMs: number
   realAccess: boolean
   nodeInput: string

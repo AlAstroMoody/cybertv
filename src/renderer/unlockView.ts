@@ -5,6 +5,65 @@ const TITLE = 'ARASAKA'
 const TAG = 'NETSEC  //  CC35  //  ICE-03'
 const SUB = 'CORE TEAM  ·  DHSF 5TH CLASS'
 
+function fitFont(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxSize: number,
+  weight = '600',
+  family = 'OpenSans',
+): number {
+  let size = maxSize
+  while (size > 11) {
+    ctx.font = `${weight} ${size}px '${family}'`
+    if (ctx.measureText(text).width <= maxWidth) return size
+    size -= 1
+  }
+  ctx.font = `${weight} ${size}px '${family}'`
+  return size
+}
+
+function drawHandheldGate(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  rowY: number,
+  slotH: number,
+  g: { spike: boolean; jx: number; jy: number; slice: number },
+): void {
+  const maxW = W * 0.86
+  const y = rowY + slotH * 0.36
+
+  ctx.save()
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+
+  const titleSize = fitFont(ctx, 'HANDHELD RIG', maxW, Math.min(34, W / 14), 'bold', 'Cyberpunk')
+  if (g.spike) {
+    ctx.globalAlpha = 0.4
+    ctx.fillStyle = COLORS.primary
+    ctx.fillText('HANDHELD RIG', W / 2 + g.jx, y - titleSize * 1.15 + g.slice)
+  }
+  ctx.globalAlpha = 0.95
+  ctx.fillStyle = COLORS.primary
+  ctx.shadowColor = COLORS.primary
+  ctx.shadowBlur = 14
+  ctx.fillText('HANDHELD RIG', W / 2, y - titleSize * 1.15)
+
+  ctx.shadowBlur = 0
+  ctx.globalAlpha = 0.88
+  ctx.fillStyle = COLORS.activeText
+  const bodySize = fitFont(ctx, 'СО СТАЦИОНАРНЫХ ТЕРМИНАЛОВ', maxW, Math.min(22, W / 18))
+  ctx.fillText('ВХОД ТОЛЬКО', W / 2, y + 6)
+  ctx.fillText('СО СТАЦИОНАРНЫХ ТЕРМИНАЛОВ', W / 2, y + 6 + bodySize * 1.35)
+
+  const sub = 'PC  ·  HARDLINE  ·  NO KEYPAD'
+  ctx.globalAlpha = 1
+  ctx.fillStyle = 'rgba(247, 80, 73, 0.5)'
+  fitFont(ctx, sub, maxW, 13)
+  ctx.fillText(sub, W / 2, y + 6 + bodySize * 2.7)
+  ctx.restore()
+}
+
 function unlockGlitch(elapsedMs: number): { spike: boolean; jx: number; jy: number; slice: number } {
   const t = elapsedMs / 1000
   const spike = Math.sin(t * 3.1) > 0.93 || Math.sin(t * 1.9 + 0.4) > 0.96
@@ -29,6 +88,7 @@ export function drawUnlock(
   layout: RendererLayout,
   digits: string,
   elapsedMs: number,
+  handheld = false,
 ): void {
   const { W, H } = layout
   const g = unlockGlitch(elapsedMs)
@@ -67,6 +127,12 @@ export function drawUnlock(
   ctx.font = `600 10px 'OpenSans'`
   ctx.fillStyle = 'rgba(247, 80, 73, 0.55)'
   ctx.fillText(TAG, W / 2, titleY + titleSize * 0.62)
+
+  if (handheld) {
+    drawHandheldGate(ctx, W, rowY, slotH, g)
+    ctx.restore()
+    return
+  }
 
   for (let i = 0; i < 4; i++) {
     const x = rowX + i * (slotW + gap)

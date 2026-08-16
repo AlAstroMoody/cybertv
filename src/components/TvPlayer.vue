@@ -20,6 +20,7 @@ import { DECOY_M3U_URL } from '../constants/decoyPlaylist'
 import { archivePlaylistUrl } from '../utils/archiveUrl'
 import { isAccessCode } from '../utils/accessCode'
 import { isFullscreen, isFullscreenKey, toggleFullscreen } from '../utils/fullscreen'
+import { isHandheldTerminal } from '../utils/handheld'
 
 const M3U_URL = archivePlaylistUrl()
 
@@ -80,6 +81,7 @@ const introElapsedMs = ref(0)
 const uiVisible = ref(true)
 const unlockDigits = ref('')
 const unlockLocked = ref(false)
+const handheld = ref(isHandheldTerminal())
 const realAccess = ref(false)
 const menuSession = ref(false)
 const tracedStartedAt = ref(0)
@@ -280,6 +282,7 @@ function submitUnlock(code: string) {
 }
 
 function handleResize() {
+  handheld.value = isHandheldTerminal()
   renderer.value?.resize()
   render()
 }
@@ -348,7 +351,7 @@ function handleKeydown(e: KeyboardEvent) {
   }
 
   if (phase.value === 'unlock') {
-    if (unlockLocked.value) return
+    if (handheld.value || unlockLocked.value) return
 
     if (key === 'ArrowLeft' || key === 'Backspace') {
       if (unlockDigits.value.length === 0) return
@@ -551,6 +554,7 @@ function render() {
     uiVisible: uiVisible.value,
     isBuffering: isBuffering.value,
     unlockDigits: unlockDigits.value,
+    handheld: handheld.value,
     tracedElapsedMs: tracedStartedAt.value ? performance.now() - tracedStartedAt.value : 0,
     realAccess: realAccess.value,
     nodeInput: nodeInput.value,
@@ -572,6 +576,7 @@ watch(
     uiVisible,
     isBuffering,
     unlockDigits,
+    handheld,
     realAccess,
     nodeInput,
     deadUrls,
